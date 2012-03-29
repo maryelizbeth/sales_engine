@@ -11,7 +11,7 @@ module SalesEngine
     attr_accessor :id, :name, :created_at, :updated_at, :revenue
 
     def initialize(attributes={})
-      self.id         = attributes[:id]
+      self.id         = attributes[:id].to_i
       self.name       = attributes[:name]
       self.created_at = attributes[:created_at]
       self.updated_at = attributes[:updated_at]
@@ -21,10 +21,10 @@ module SalesEngine
       attributes = [:id, :name, :created_at, :updated_at]
       attributes.each do |attribute|
         define_method "find_by_#{attribute}" do |input|
-          find_merchants(attribute, input.to_s)
+          find_merchants(attribute, input)
         end
         define_method "find_all_by_#{attribute}" do |input|
-          find_all_merchants(attribute, input.to_s)
+          find_all_merchants(attribute, input)
         end
       end
     end
@@ -40,20 +40,6 @@ module SalesEngine
     def invoices
       SalesEngine::Invoice.find_all_by_merchant_id(self.id)
     end
-
-    # def revenue(date=nil)
-    #   rev = 0
-    #   self.charged_invoices(date).each do |inv|
-    #     inv.invoice_items.each do |inv_item|
-    #       rev += (inv_item.unit_price.to_i * inv_item.quantity.to_i)
-    #     end
-    #   end
-    #   rev
-    # end
-
-    # def revenue(date=nil)
-    #   self.charged_invoices(date).map { |i| i.revenue }.inject(:+)
-    # end
 
     def revenue(date=nil)
       #rev = BigDecimal.new("")
@@ -95,7 +81,7 @@ module SalesEngine
       end
     end
 
-    def self.items(num_merchants)
+    def self.most_items(num_merchants)
       # returns the top x merchant instances ranked by total number of items sold
       rank = Hash.new
       Database.instance.merchants.each do |merch|
@@ -118,11 +104,19 @@ module SalesEngine
       cust_ids.each { |id| count[id] += 1 }
       fav_cust_id = count.sort_by{ |id, count| count }.last[0]
       Customer.find_by_id(fav_cust_id)
+    end
 
+    def pending_invoices
+      self.invoices.select do |inv|
+        !inv.success
+      end
     end
 
     def customers_with_pending_invoices
       #customers_with_pending_invoices returns a collection of Customer instances which have pending (unpaid) invoices
+      self.pending_invoices.collect do |inv|
+        Customer.find_by_id(inv.customer_id)
+      end
     end
 
   end
